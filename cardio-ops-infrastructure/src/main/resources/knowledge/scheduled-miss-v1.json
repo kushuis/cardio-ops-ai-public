@@ -1,0 +1,68 @@
+[
+  {
+    "documentId": "scheduled-miss-service-playbook",
+    "version": "1.0.0",
+    "source": "CardioOps 运营知识库",
+    "applicability": "ICM 应传未传患者服务复核",
+    "publishStatus": "PUBLISHED",
+    "title": "ICM 应传未传患者服务排查手册",
+    "profileIds": ["demo-icm-v1", "demo-icm-v2", "demo-icm-v2-secure"],
+    "sopTags": ["icm", "transmission", "gateway"],
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "effectiveUntil": null,
+    "sections": [
+      {
+        "sectionId": "manual-upload-boundary",
+        "content": "患者打开小程序点击传输，或使用磁铁激活 ICM 后通过蓝牙网关上传，都属于患者主动触发。主动传输成功只能说明当时上传链路可用，不能证明设备定时自动唤醒正常，也不能单独关闭应传未传问题。"
+      },
+      {
+        "sectionId": "human-review-checklist",
+        "content": "没有自动唤醒证据时，运营人员应复核：应传时网关是否在线及绑定、患者当时是否在网关蓝牙范围内、最近设备电量观测时间与数值、近期是否有程控随访或远程广播参数修改。系统没有患者位置和设备唤醒遥测时，不应在患者不在家、距离过远和设备未唤醒之间强行选择单一原因。"
+      },
+      {
+        "sectionId": "schedule-change-boundary",
+        "content": "Web 远程广播参数只有在旧应传时间之前已经成功写入设备且新时间不同，才说明旧应传窗口失效。待写入、失败、过期记录不能视为已生效。医生使用程控仪在本地修改的时间，可能要等设备再次连接后才能同步到云端。"
+      },
+      {
+        "sectionId": "safe-communication",
+        "content": "调查摘要面向运营客服，只描述传输、网关、设备参数和缺失证据，不进行 ECG 医学诊断，不声称已经联系患者，也不自动要求患者执行医疗操作。证据不足时进入人工复核。"
+      }
+    ]
+  },
+  {
+    "documentId": "icm-v1-scheduled-miss-trigger-guide",
+    "version": "1.0.0",
+    "source": "CardioOps 设备协议知识库",
+    "applicability": "ICM V1 应传未传触发语义",
+    "publishStatus": "PUBLISHED",
+    "title": "ICM V1 应传未传触发解释",
+    "profileIds": ["demo-icm-v1"],
+    "sopTags": ["icm", "transmission", "gateway"],
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "effectiveUntil": null,
+    "sections": [
+      {
+        "sectionId": "automatic-wakeup",
+        "content": "ICM V1 当前只把定时广播经蓝牙网关完成的上传作为自动唤醒证据。历史复位广播概念已经废弃，不参与恢复判断；磁铁触发属于手动传输。具体恢复结论仍由 Java 规则根据标准化触发类型计算。"
+      }
+    ]
+  },
+  {
+    "documentId": "icm-v2-scheduled-miss-trigger-guide",
+    "version": "1.0.0",
+    "source": "CardioOps 设备协议知识库",
+    "applicability": "ICM V2 应传未传触发语义",
+    "publishStatus": "PUBLISHED",
+    "title": "ICM V2 应传未传触发解释",
+    "profileIds": ["demo-icm-v2", "demo-icm-v2-secure"],
+    "sopTags": ["icm", "icm-v2", "transmission", "gateway"],
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "effectiveUntil": null,
+    "sections": [
+      {
+        "sectionId": "automatic-wakeup",
+        "content": "ICM V2 的事件触发、家庭监护定时和告警触发经蓝牙网关完成上传，都能证明设备发生过自动唤醒；磁铁触发仍属于手动传输。知识片段用于解释规则，最终 recovered 值必须由 Java 校验器计算。"
+      }
+    ]
+  }
+]

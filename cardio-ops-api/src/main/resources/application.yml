@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: cardio-ops-api
+  threads:
+    virtual:
+      enabled: true
+  kafka:
+    bootstrap-servers: ${CARDIO_OPS_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+    consumer:
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      group-id: cardio-ops-worker-v1
+    listener:
+      ack-mode: record
+  datasource:
+    url: ${CARDIO_OPS_DB_URL:jdbc:postgresql://127.0.0.1:5432/cardio_ops}
+    username: ${CARDIO_OPS_DB_USERNAME:cardio_ops}
+    password: ${CARDIO_OPS_DB_PASSWORD:local_cardio_ops_only}
+  sql:
+    init:
+      mode: always
+      schema-locations:
+        - classpath:db/integration-intake-schema.sql
+        - classpath:db/incident-projection-schema.sql
+        - classpath:db/investigation-audit-schema.sql
+        - classpath:db/knowledge-index-schema.sql
+        - classpath:db/customer-service-schema.sql
+        - classpath:db/agent-recovery-schema.sql
+        - classpath:db/knowledge-governance-schema.sql
+        - classpath:db/closure-approval-schema.sql
+        - classpath:db/scheduled-miss-recheck-schema.sql
+        - classpath:db/low-battery-investigation-schema.sql
+
+cardio-ops:
+  runtime:
+    role: api
+  integration:
+    enabled: ${CARDIO_OPS_INTEGRATION_ENABLED:true}
+    kafka:
+      bootstrap-servers: ${CARDIO_OPS_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+      topic: cardio-ops.integration-events.v1
+      dlt-topic: cardio-ops.integration-events.v1.DLT
+      consumer-group: cardio-ops-worker-v1
+  customer-service-api:
+    # Internal endpoints fail closed until deployment injects both service identities.
+    service-token: ${CARDIO_OPS_CUSTOMER_SERVICE_TOKEN:}
+    approval-service-token: ${CARDIO_OPS_APPROVAL_SERVICE_TOKEN:}
+
+server:
+  port: ${CARDIO_OPS_API_PORT:8080}
+
+management:
+  tracing:
+    sampling:
+      probability: ${CARDIO_OPS_TRACE_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: W3C
+  opentelemetry:
+    enabled: ${CARDIO_OPS_OTEL_ENABLED:false}
+    resource-attributes:
+      service.namespace: cardio-ops-ai
+      deployment.environment: ${CARDIO_OPS_ENVIRONMENT:local}
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://127.0.0.1:4318/v1/traces}
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  # Log location is configurable so containers can mount a dedicated volume.
+  cardio-ops:
+    path: ${CARDIO_OPS_LOG_PATH:./logs}
+  level:
+    io.cardioops: ${CARDIO_OPS_LOG_LEVEL:INFO}
+  pattern:
+    correlation: "[${spring.application.name:},traceId=%X{traceId:-},spanId=%X{spanId:-},businessTraceId=%X{businessTraceId:-}] "
+  include-application-name: false

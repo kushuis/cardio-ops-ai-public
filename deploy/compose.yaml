@@ -1,0 +1,35 @@
+name: cardio-ops-ai
+
+services:
+  # PostgreSQL stores incidents, audits and checkpoints; pgvector supports optional RAG.
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg17
+    environment:
+      POSTGRES_DB: cardio_ops
+      POSTGRES_USER: cardio_ops
+      POSTGRES_PASSWORD: local_cardio_ops_only
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cardio_ops -d cardio_ops"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - cardio_ops_postgres:/var/lib/postgresql/data
+      # Numbered scripts create the complete schema on a fresh volume.
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+
+  # Asynchronous boundary between the device platform and CardioOps.
+  kafka:
+    image: apache/kafka:4.2.1
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  cardio_ops_postgres:

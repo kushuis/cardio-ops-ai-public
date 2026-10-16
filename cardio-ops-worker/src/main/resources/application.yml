@@ -1,0 +1,185 @@
+spring:
+  application:
+    name: cardio-ops-worker
+  main:
+    # Worker 不提供业务 API，但需要一个受网络策略保护的 Actuator/Prometheus 端口。
+    web-application-type: servlet
+  # DeepSeek 提供 OpenAI 兼容协议，所以 Spring AI 仍使用名为 openai 的适配器；
+  # 这里的 openai 表示协议实现，不表示实际请求 OpenAI。单元测试会覆盖为 none。
+  ai:
+    mcp:
+      client:
+        enabled: ${CARDIO_OPS_MCP_ENABLED:false}
+        name: cardio-ops-worker
+        version: 1.0.0
+        type: SYNC
+        initialized: true
+        request-timeout: ${CARDIO_OPS_MCP_TIMEOUT:5s}
+        # Agent 仍使用绑定单 Run 的本地 Tool 外壳；禁止把远端 Tool 自动直接塞给模型，
+        # 否则会绕过租约检查、Evidence Ledger、设备 Profile 和审计。
+        toolcallback:
+          enabled: false
+        streamable-http:
+          connections:
+            device-platform:
+              url: ${CARDIO_OPS_DEVICE_PLATFORM_MCP_URL:http://127.0.0.1:8091}
+              endpoint: /mcp
+    model:
+      chat: ${SPRING_AI_MODEL_CHAT:openai}
+      # DeepSeek 当前在本项目只承担 ChatModel；RAG 的 Embedding 使用阿里云百炼
+      # DashScope 的 OpenAI 兼容接口，不能复用 DeepSeek Chat 地址和密钥。
+      embedding: ${SPRING_AI_MODEL_EMBEDDING:openai}
+    openai:
+      # Credentials are injected by the runtime secret manager; no provider key is committed.
+      api-key: ${DEEPSEEK_API_KEY:}
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      chat:
+        # 当前接入的 DeepSeek 端点支持 deepseek-flash / deepseek-v4-pro。
+        # 与 cardio-ops.agent.model-name 共享同一个环境变量，保证日志、策略快照和真实请求一致。
+        model: ${DEEPSEEK_MODEL:deepseek-flash}
+        # V4 默认开启思考模式，但思考 Tool Calling 需要逐轮回传 reasoning_content。
+        # 当前 Spring AI OpenAI 适配链没有显式保存该扩展字段，因此先使用兼容性更稳的非思考模式。
+        extra-body:
+          thinking:
+            type: disabled
+      embedding:
+        # text-embedding-v3 可指定 1024 维；维度必须与既有 PGVector 表保持一致。
+        # API Key 只从部署环境读取，绝不能写入 Git 仓库或 application.yml。
+        base-url: ${CARDIO_OPS_EMBEDDING_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+        api-key: ${CARDIO_OPS_EMBEDDING_API_KEY:}
+        model: ${CARDIO_OPS_EMBEDDING_MODEL:text-embedding-v3}
+        dimensions: ${CARDIO_OPS_EMBEDDING_DIMENSIONS:1024}
+    vectorstore:
+      # 与 knowledge.enabled 一起打开；默认 none 可避免没有 EmbeddingModel 时误创建向量库。
+      type: ${SPRING_AI_VECTOR_STORE_TYPE:none}
+      pgvector:
+        table-name: cardio_ops_knowledge_vector
+        dimensions: ${CARDIO_OPS_EMBEDDING_DIMENSIONS:1024}
+        initialize-schema: ${CARDIO_OPS_VECTOR_INITIALIZE_SCHEMA:true}
+        schema-validation: true
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+  threads:
+    virtual:
+      enabled: true
+  kafka:
+    bootstrap-servers: ${CARDIO_OPS_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+    consumer:
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      group-id: cardio-ops-worker-v1
+    listener:
+      ack-mode: record
+  datasource:
+    url: ${CARDIO_OPS_DB_URL:jdbc:postgresql://127.0.0.1:5432/cardio_ops}
+    username: ${CARDIO_OPS_DB_USERNAME:cardio_ops}
+    password: ${CARDIO_OPS_DB_PASSWORD:local_cardio_ops_only}
+  sql:
+    init:
+      mode: always
+      schema-locations:
+        - classpath:db/integration-intake-schema.sql
+        - classpath:db/incident-projection-schema.sql
+        - classpath:db/investigation-audit-schema.sql
+        - classpath:db/knowledge-index-schema.sql
+        - classpath:db/customer-service-schema.sql
+        - classpath:db/agent-recovery-schema.sql
+        - classpath:db/knowledge-governance-schema.sql
+        - classpath:db/closure-approval-schema.sql
+        - classpath:db/scheduled-miss-recheck-schema.sql
+        - classpath:db/low-battery-investigation-schema.sql
+
+cardio-ops:
+  runtime:
+    role: worker
+  integration:
+    enabled: ${CARDIO_OPS_INTEGRATION_ENABLED:true}
+    kafka:
+      bootstrap-servers: ${CARDIO_OPS_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+      topic: cardio-ops.integration-events.v1
+      dlt-topic: cardio-ops.integration-events.v1.DLT
+      consumer-group: cardio-ops-worker-v1
+  agent:
+    recheck-poll-delay: ${CARDIO_OPS_RECHECK_POLL_DELAY:30s}
+    # 真实模型适配器已配置，但仍用独立开关避免启动普通 Worker 时意外产生费用。
+    enabled: ${CARDIO_OPS_AGENT_ENABLED:false}
+    scheduled-transmission-grace: ${CARDIO_OPS_SCHEDULED_GRACE:3m}
+    model-name: ${DEEPSEEK_MODEL:deepseek-flash}
+    worker:
+      # 以下都是可部署环境调整的技术参数，不代表医疗或客服业务规则。
+      instance-id: ${CARDIO_OPS_WORKER_INSTANCE_ID:}
+      poll-delay: ${CARDIO_OPS_AGENT_POLL_DELAY:5s}
+      lease-duration: ${CARDIO_OPS_AGENT_LEASE_DURATION:1m}
+      heartbeat-interval: ${CARDIO_OPS_AGENT_HEARTBEAT_INTERVAL:10s}
+      max-attempts: ${CARDIO_OPS_AGENT_MAX_ATTEMPTS:3}
+  knowledge:
+    # 部署时还要把 SPRING_AI_MODEL_EMBEDDING 设为 openai、
+    # SPRING_AI_VECTOR_STORE_TYPE 设为 pgvector，并提供 CARDIO_OPS_EMBEDDING_API_KEY。
+    enabled: ${CARDIO_OPS_KNOWLEDGE_ENABLED:false}
+    minimum-similarity: ${CARDIO_OPS_KNOWLEDGE_MIN_SIMILARITY:0.55}
+    # DashScope text-embedding-v3 单请求至多接收 10 条文本；不要把数据库 JDBC 批次当成模型 API 批次。
+    embedding-batch-size: ${CARDIO_OPS_EMBEDDING_BATCH_SIZE:10}
+  device-platform:
+    # MCP is the production adapter. HTTP remains an explicit migration option, never an automatic fallback.
+    transport: ${CARDIO_OPS_DEVICE_PLATFORM_TRANSPORT:mcp}
+    base-url: ${CARDIO_OPS_DEVICE_PLATFORM_BASE_URL:http://localhost:8081}
+    service-token: ${CARDIO_OPS_DEVICE_PLATFORM_SERVICE_TOKEN:}
+    timeout: ${CARDIO_OPS_DEVICE_PLATFORM_TIMEOUT:3s}
+    mcp:
+      # 必须与 DevicePlatform MCP Server 对外声明的服务名一致，用于多 MCP Server 场景下精确选路。
+      server-name: device-platform-remote-monitoring
+      service-token: ${DEVICE_PLATFORM_MCP_SERVICE_TOKEN:}
+      actor-role: SYSTEM_WORKER
+  reconciliation:
+    # 巡检只告警不自动改业务状态；手动入口必须配置独立服务令牌。
+    interval: ${CARDIO_OPS_RECONCILIATION_INTERVAL:5m}
+    initial-delay: ${CARDIO_OPS_RECONCILIATION_INITIAL_DELAY:1m}
+    running-timeout: ${CARDIO_OPS_RECONCILIATION_RUNNING_TIMEOUT:10m}
+    approval-timeout: ${CARDIO_OPS_RECONCILIATION_APPROVAL_TIMEOUT:24h}
+    service-token: ${CARDIO_OPS_RECONCILIATION_TOKEN:}
+
+management:
+  tracing:
+    # 本地演示需要看到完整链路；生产环境可按吞吐量降低采样率。
+    sampling:
+      probability: ${CARDIO_OPS_TRACE_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: W3C
+  opentelemetry:
+    # 没有本地 Collector 时保持关闭，避免后台反复连接 4318；启动 LGTM/Tempo 后设为 true。
+    enabled: ${CARDIO_OPS_OTEL_ENABLED:false}
+    resource-attributes:
+      service.namespace: cardio-ops-ai
+      deployment.environment: ${CARDIO_OPS_ENVIRONMENT:local}
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://127.0.0.1:4318/v1/traces}
+  otlp:
+    metrics:
+      export:
+        # Metrics 继续由 Prometheus pull，避免同一组指标再向 OTLP 重复推送。
+        enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+
+server:
+  # 默认只监听本机；容器部署时可显式改为 0.0.0.0，并通过内网和网络策略限制访问。
+  address: ${CARDIO_OPS_WORKER_BIND_ADDRESS:127.0.0.1}
+  port: ${CARDIO_OPS_WORKER_OBSERVABILITY_PORT:8082}
+
+logging:
+  # Log location is configurable so containers can mount a dedicated volume.
+  cardio-ops:
+    path: ${CARDIO_OPS_LOG_PATH:./logs}
+  level:
+    io.cardioops: ${CARDIO_OPS_LOG_LEVEL:INFO}
+  # OTel 的 traceId/spanId 与业务 traceId 含义不同；日志中同时保留二者便于排查。
+  pattern:
+    correlation: "[${spring.application.name:},traceId=%X{traceId:-},spanId=%X{spanId:-},businessTraceId=%X{businessTraceId:-}] "
+  include-application-name: false

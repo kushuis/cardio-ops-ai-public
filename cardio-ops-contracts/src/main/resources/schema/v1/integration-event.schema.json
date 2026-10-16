@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cardio-ops.local/schema/v1/integration-event.schema.json",
+  "title": "CardioOps Integration Event V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "schemaVersion", "eventType", "traceId", "occurredAt", "payload"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "schemaVersion": { "const": 1 },
+    "eventType": {
+      "enum": ["ISSUE_DETECTED"]
+    },
+    "traceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deviceRef", "sourceRecordRef", "device"],
+      "properties": {
+        "deviceRef": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sourceRecordRef": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "device": { "$ref": "#/$defs/device" },
+        "issueType": { "enum": ["SCHEDULED_MISSED", "LOW_BATTERY", "TRANSMISSION_EVENTS_INCOMPLETE"] },
+        "totalEventCount": { "type": "integer", "minimum": 0 },
+        "receivedEventCount": { "type": "integer", "minimum": 0 },
+        "expectedTransmissionAt": { "type": "string", "format": "date-time" },
+        "nextTransmissionAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "eventType": { "const": "ISSUE_DETECTED" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": ["issueType"],
+            "allOf": [
+              {
+                "if": { "properties": { "issueType": { "const": "SCHEDULED_MISSED" } } },
+                "then": { "required": ["expectedTransmissionAt", "nextTransmissionAt"] }
+              },
+              {
+                "if": { "properties": { "issueType": { "const": "TRANSMISSION_EVENTS_INCOMPLETE" } } },
+                "then": { "required": ["totalEventCount", "receivedEventCount"] }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "modelCode", "firmwareVersion", "firmwareVersionNumber"],
+      "properties": {
+        "family": { "enum": ["ICM", "ICD"] },
+        "modelCode": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "firmwareVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "firmwareVersionNumber": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

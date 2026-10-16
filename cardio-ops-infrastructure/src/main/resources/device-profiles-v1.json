@@ -1,0 +1,89 @@
+[
+  {
+    "profileId": "demo-icm-v1",
+    "family": "ICM",
+    "modelCode": "DEMO_ICM_V1",
+    "firmwareMinInclusive": 100,
+    "firmwareMaxExclusive": 200,
+    "priority": 100,
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "allowedTools": [
+      "GET_SCHEDULED_MISS_CONTEXT",
+      "QUERY_TRANSMISSIONS_IN_WINDOW",
+      "GET_CURRENT_GATEWAY_SNAPSHOT",
+      "QUERY_SCHEDULE_CHANGE_HISTORY",
+      "SEARCH_VERSIONED_KNOWLEDGE",
+      "GET_DEVICE_CONTEXT",
+      "GET_GATEWAY_SNAPSHOT",
+      "GET_TRANSMISSION_HISTORY",
+      "GET_PROCESSING_JOB_STATUS",
+      "CREATE_PATIENT_SERVICE_CASE",
+      "PROPOSE_CLOUD_JOB_RETRY"
+    ],
+    "sopTags": ["icm", "transmission", "gateway"],
+    "writeActionsAllowed": false
+  },
+  {
+    "profileId": "demo-icm-v2",
+    "family": "ICM",
+    "modelCode": "DEMO_ICM_V2",
+    "firmwareMinInclusive": 100,
+    "firmwareMaxExclusive": 200,
+    "priority": 100,
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "allowedTools": [
+      "GET_SCHEDULED_MISS_CONTEXT",
+      "QUERY_TRANSMISSIONS_IN_WINDOW",
+      "GET_CURRENT_GATEWAY_SNAPSHOT",
+      "QUERY_SCHEDULE_CHANGE_HISTORY",
+      "SEARCH_VERSIONED_KNOWLEDGE",
+      "GET_DEVICE_CONTEXT",
+      "GET_GATEWAY_SNAPSHOT",
+      "GET_TRANSMISSION_HISTORY"
+    ],
+    "sopTags": ["icm", "icm-v2", "transmission", "gateway"],
+    "writeActionsAllowed": false
+  },
+  {
+    "profileId": "demo-icm-v2-secure",
+    "family": "ICM",
+    "modelCode": "DEMO_ICM_V2_SECURE",
+    "firmwareMinInclusive": 17408,
+    "firmwareMaxExclusive": 17409,
+    "priority": 100,
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "allowedTools": [
+      "GET_SCHEDULED_MISS_CONTEXT",
+      "QUERY_TRANSMISSIONS_IN_WINDOW",
+      "GET_CURRENT_GATEWAY_SNAPSHOT",
+      "QUERY_SCHEDULE_CHANGE_HISTORY",
+      "SEARCH_VERSIONED_KNOWLEDGE",
+      "GET_DEVICE_CONTEXT",
+      "GET_GATEWAY_SNAPSHOT",
+      "GET_TRANSMISSION_HISTORY"
+    ],
+    "sopTags": ["icm", "icm-v2", "transmission", "gateway"],
+    "writeActionsAllowed": false
+  },
+  {
+    "profileId": "demo-icd-v1",
+    "family": "ICD",
+    "modelCode": "DEMO_ICD_V1",
+    "firmwareMinInclusive": 100,
+    "firmwareMaxExclusive": 200,
+    "priority": 100,
+    "effectiveFrom": "2026-01-01T00:00:00Z",
+    "allowedTools": [
+      "GET_DEVICE_CONTEXT",
+      "GET_GATEWAY_SNAPSHOT",
+      "GET_TRANSMISSION_HISTORY",
+      "GET_PROCESSING_JOB_STATUS",
+      "GET_PARAMETER_READBACK",
+      "CREATE_PATIENT_SERVICE_CASE",
+      "PROPOSE_CLOUD_JOB_RETRY",
+      "PROPOSE_DEVICE_PARAMETER_ACTION"
+    ],
+    "sopTags": ["icd", "transmission", "parameter-readback"],
+    "writeActionsAllowed": false
+  }
+]

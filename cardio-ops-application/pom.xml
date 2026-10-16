@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.cardioops</groupId>
+        <artifactId>cardio-ops-ai</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>cardio-ops-application</artifactId>
+    <name>CardioOps Application</name>
+    <dependencies>
+        <dependency>
+            <groupId>io.cardioops</groupId>
+            <artifactId>cardio-ops-domain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- 应用层只依赖日志门面，不依赖具体日志实现；运行时由 API/Worker 提供 Logback。 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+    </dependencies>
+</project>

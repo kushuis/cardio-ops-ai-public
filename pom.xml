@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.1</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>io.cardioops</groupId>
+    <artifactId>cardio-ops-ai</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>CardioOps AI</name>
+    <description>AI-assisted investigation and operations platform for cardiac device remote monitoring</description>
+
+    <!--
+      依赖方向大致为：启动模块(api/worker) -> agent/infrastructure -> application -> domain。
+      contracts 是跨系统消息契约，不能反向依赖具体业务实现。
+    -->
+    <modules>
+        <module>cardio-ops-contracts</module>
+        <module>cardio-ops-domain</module>
+        <module>cardio-ops-application</module>
+        <module>cardio-ops-agent-runtime</module>
+        <module>cardio-ops-infrastructure</module>
+        <module>cardio-ops-api</module>
+        <module>cardio-ops-worker</module>
+        <module>device-platform-mock</module>
+    </modules>
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.release>21</maven.compiler.release>
+        <spring-ai.version>2.0.1</spring-ai.version>
+        <langgraph4j.version>1.8.20</langgraph4j.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!--
+          -pl ... -am spring-boot:run 会把父工程和中间模块一并放进 reactor。
+          那些模块没有 main class，必须默认跳过 run；只有 api/worker 再打开。
+        -->
+        <spring-boot.run.skip>true</spring-boot.run.skip>
+    </properties>
+
+    <!-- BOM 只统一依赖版本；具体模块仍需显式声明自己真正使用的依赖。 -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.bsc.langgraph4j</groupId>
+                <artifactId>langgraph4j-bom</artifactId>
+                <version>${langgraph4j.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

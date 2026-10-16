@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: device-platform-mock
+  ai:
+    mcp:
+      server:
+        name: device-platform-remote-monitoring
+        version: 1.0.0
+        type: SYNC
+        protocol: STREAMABLE
+        instructions: >-
+          Read-only synthetic evidence server for CardioOps demonstrations.
+          Never infer a diagnosis and never expose patient identity.
+        capabilities:
+          tool: true
+          resource: true
+          prompt: false
+          completion: false
+        streamable-http:
+          mcp-endpoint: /mcp
+
+device-platform:
+  mock:
+    service-token: ${DEVICE_PLATFORM_MCP_SERVICE_TOKEN:}
+    client-role: ${DEVICE_PLATFORM_MCP_CLIENT_ROLE:SYSTEM_WORKER}
+
+server:
+  address: ${DEVICE_PLATFORM_MOCK_BIND_ADDRESS:127.0.0.1}
+  port: ${DEVICE_PLATFORM_MOCK_PORT:8091}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

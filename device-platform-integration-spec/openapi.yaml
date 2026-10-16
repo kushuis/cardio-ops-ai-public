@@ -1,0 +1,216 @@
+openapi: 3.1.0
+info:
+  title: DevicePlatform Internal API for CardioOps
+  version: 1.1.0
+servers:
+  - url: https://device-platform.example.invalid
+security:
+  - serviceJwt: []
+paths:
+  /internal/v1/cardio-ops/scheduled-windows/{correlationRef}/context:
+    get:
+      summary: 获取应传未传窗口的初始事实快照
+      parameters:
+        - $ref: '#/components/parameters/CorrelationRef'
+        - $ref: '#/components/parameters/TraceId'
+      responses:
+        '200':
+          description: DevicePlatform 已确认的应传时间、设备快照、历史网关状态和带时间戳的电量/广播证据
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduledMissContext' }
+        '404': { description: 应传窗口不存在 }
+  /internal/v1/cardio-ops/scheduled-windows/{correlationRef}/transmissions:
+    get:
+      summary: 查询应传时间到下次应传时间之间的 ICM 传输批次
+      parameters:
+        - $ref: '#/components/parameters/CorrelationRef'
+        - $ref: '#/components/parameters/TraceId'
+      responses:
+        '200':
+          description: 最多返回服务端限定数量；rawTriggerType 由 CardioOps 冻结 Profile 翻译
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items: { $ref: '#/components/schemas/DevicePlatformTransmissionObservation' }
+  /internal/v1/cardio-ops/scheduled-windows/{correlationRef}/gateway/current:
+    get:
+      summary: 获取该窗口设备当前绑定网关的最新状态
+      parameters:
+        - $ref: '#/components/parameters/CorrelationRef'
+        - $ref: '#/components/parameters/TraceId'
+      responses:
+        '200':
+          description: 当前状态不能覆盖 context 中应传时刻的历史状态
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GatewayStatusSnapshot' }
+  /internal/v1/cardio-ops/scheduled-windows/{correlationRef}/schedule-changes:
+    get:
+      summary: 查询该应传窗口附近的 Web 远程广播时间修改记录
+      parameters:
+        - $ref: '#/components/parameters/CorrelationRef'
+        - $ref: '#/components/parameters/TraceId'
+      responses:
+        '200':
+          description: 只返回云端可见的 Web 修改；程控仪离线修改可能不存在记录
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items: { $ref: '#/components/schemas/ScheduleChangeObservation' }
+  /internal/v1/cardio-ops/devices/{deviceRef}/investigation-context:
+    get:
+      summary: 获取一次调查所需的脱敏聚合快照
+      parameters:
+        - $ref: '#/components/parameters/DeviceRef'
+        - $ref: '#/components/parameters/TraceId'
+      responses:
+        '200':
+          description: 设备、网关、最近传输和处理任务的聚合快照
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestigationContext'
+        '404': { description: 设备引用不存在 }
+  /internal/v1/cardio-ops/commands/cloud-job-retries:
+    post:
+      summary: 受控重试白名单内的云端任务（不包含设备远程写）
+      parameters:
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [jobRef, reasonCode, approvedBy]
+              properties:
+                jobRef: { type: string, maxLength: 128 }
+                reasonCode: { type: string, enum: [TRANSIENT_TIMEOUT, UPSTREAM_TEMPORARY_FAILURE] }
+                approvedBy: { type: string, maxLength: 128 }
+      responses:
+        '202': { description: 已接受幂等命令 }
+        '403': { description: 服务身份或命令白名单不允许 }
+components:
+  securitySchemes:
+    serviceJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CorrelationRef:
+      name: correlationRef
+      in: path
+      required: true
+      description: DevicePlatform Outbox 发布的稳定应传窗口引用，不是 CardioOps incidentId
+      schema: { type: string, maxLength: 256 }
+    DeviceRef:
+      name: deviceRef
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+    TraceId:
+      name: X-Trace-Id
+      in: header
+      required: true
+      schema: { type: string, maxLength: 128 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, maxLength: 128 }
+  schemas:
+    DeviceDescriptor:
+      type: object
+      additionalProperties: false
+      required: [family, modelCode, firmwareVersion, firmwareVersionNumber]
+      properties:
+        family: { type: string, enum: [ICM, ICD] }
+        modelCode: { type: string }
+        firmwareVersion: { type: string }
+        firmwareVersionNumber: { type: integer, format: int64, minimum: 0 }
+    ScheduledMissContext:
+      type: object
+      additionalProperties: false
+      required:
+        - evidenceRef
+        - deviceRef
+        - device
+        - expectedTransmissionAt
+        - nextExpectedTransmissionAt
+        - gatewayAtExpected
+        - latestBatteryLow
+      properties:
+        evidenceRef: { type: string }
+        deviceRef: { type: string }
+        device: { $ref: '#/components/schemas/DeviceDescriptor' }
+        expectedTransmissionAt: { type: string, format: date-time }
+        nextExpectedTransmissionAt: { type: string, format: date-time }
+        gatewayAtExpected: { type: string, enum: [UNBOUND, ONLINE, OFFLINE] }
+        latestBatteryLow: { type: boolean }
+        batteryObservedAt: { type: [string, 'null'], format: date-time }
+        lastDeviceReportedBroadcastAt: { type: [string, 'null'], format: date-time }
+        deviceBroadcastObservedAt: { type: [string, 'null'], format: date-time }
+    DevicePlatformTransmissionObservation:
+      type: object
+      additionalProperties: false
+      required:
+        - evidenceRef
+        - channel
+        - rawTriggerType
+        - startedAt
+        - completedAt
+        - totalEventCount
+        - receivedEventCount
+      properties:
+        evidenceRef: { type: string }
+        channel: { type: string, enum: [GATEWAY, MINI_PROGRAM] }
+        rawTriggerType:
+          type: integer
+          description: DevicePlatform 协议原始值；必须按设备 Profile 翻译，禁止跨版本通用解释
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        totalEventCount: { type: integer, minimum: 0 }
+        receivedEventCount: { type: integer, minimum: 0 }
+        deviceReportedNextBroadcastAt: { type: [string, 'null'], format: date-time }
+    GatewayStatusSnapshot:
+      type: object
+      additionalProperties: false
+      required: [evidenceRef, connectivity, observedAt]
+      properties:
+        evidenceRef: { type: string }
+        connectivity: { type: string, enum: [UNBOUND, ONLINE, OFFLINE] }
+        observedAt: { type: string, format: date-time }
+        lastOnlineAt: { type: [string, 'null'], format: date-time }
+        lastOfflineAt: { type: [string, 'null'], format: date-time }
+    ScheduleChangeObservation:
+      type: object
+      additionalProperties: false
+      required: [evidenceRef, status, submittedAt, beforeBroadcastAt, targetBroadcastAt]
+      properties:
+        evidenceRef: { type: string }
+        status: { type: string, enum: [PENDING, SUCCEEDED, FAILED, EXPIRED] }
+        submittedAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+        beforeBroadcastAt: { type: string, format: date-time }
+        targetBroadcastAt: { type: string, format: date-time }
+    InvestigationContext:
+      type: object
+      additionalProperties: false
+      required: [deviceRef, family, modelCode, firmwareVersion, firmwareVersionNumber, capturedAt]
+      properties:
+        deviceRef: { type: string }
+        family: { type: string, enum: [ICM, ICD] }
+        modelCode: { type: string }
+        firmwareVersion: { type: string }
+        firmwareVersionNumber: { type: integer, format: int64, minimum: 0 }
+        gatewayOnline: { type: [boolean, 'null'] }
+        lastTransmissionAt: { type: [string, 'null'], format: date-time }
+        lastProcessingJobStatus: { type: [string, 'null'] }
+        capturedAt: { type: string, format: date-time }
